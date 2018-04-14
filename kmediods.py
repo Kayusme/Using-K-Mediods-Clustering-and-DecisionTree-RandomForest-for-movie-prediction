@@ -84,13 +84,12 @@ def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
     while True:
 
         if medoids is None or not medoids:
-            medoids = random.sample(data, 5)
+            medoids = random.sample(data, k)
         else:
             random.shuffle(medoids)
-            medoids.pop()
-            medoids.pop()
-            medoids.pop()
-            medoids += random.sample(data, 3)
+            for _ in range(0, k/2):
+                medoids.pop()
+            medoids += random.sample(data, k/2)
 
         clusters = defaultdict(list)
 
