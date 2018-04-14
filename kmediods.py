@@ -1,30 +1,87 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, export_graphviz
+from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.model_selection import train_test_split
 from collections import defaultdict
-import seaborn as sns
 import random
+import pydot
+from io import StringIO
+import pydotplus
 
 np.set_printoptions(threshold='nan')
 pd.set_option('display.max_columns', None)
+
+
+# create a target var based on IMDB score
+"""
+ 8 <= imdb <= 10 => 'great'
+ 7 <= imdb < 8 => 'good'
+ 6 <= imdb < 7 => 'average'
+ imdb < 6 => 'bad'
+"""
+
+
+def get_movie_class(row):
+    if 8 <= row['imdb_score'] <= 10:
+        row['Class'] = 'great'
+    elif 7 <= row['imdb_score'] < 8:
+        row['Class'] = 'good'
+    elif 6 <= row['imdb_score'] < 7:
+        row['Class'] = 'average'
+    else:
+        row['Class'] = 'bad'
+    return row
+
+
+def print_metrics(y_test, y_pred, threshold=0.5):
+    print("Precision", metrics.precision_score(y_test, y_pred > threshold))
+    print("Recall", metrics.recall_score(y_test, y_pred > threshold))
+    print("F1", metrics.f1_score(y_test, y_pred > threshold))
+    print("AUC", metrics.roc_auc_score(y_test, y_pred_lr))
+
+
+def build_decision_tree(df):
+
+    df = df.dropna()
+    df = df.reset_index()
+    df = df.apply(get_movie_class, axis=1)  # for each row
+    df_before_split = df.copy()
+    split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
+    for train_index, test_index in split.split(df, df['Class']):
+        train_set = df.loc[train_index]
+        test_set = df.loc[test_index]
+        Y_train = train_set.Class
+    X_train = train_set[train_set.columns.drop('Class').drop('index')]
+    Y_test = test_set.Class
+    X_test = test_set[test_set.columns.drop('Class').drop('index')]
+
+    decision_tree = DecisionTreeClassifier()
+    decision_tree.fit(X_train, Y_train)
+    print('Accuracy', decision_tree.score(X_test, Y_test))
+    # Draw graph
+    graph = pydotplus.graph_from_dot_data(dot_data)
+    graph.write_png('decisionTree.png')
 
 
 def load_datas():
     df = pd.read_csv('movie_metadata.csv')
     df = df[['gross', 'imdb_score']].dropna()
     dataset = df.values.tolist()
-    cluster = kMedoids(dataset, 5, np.inf, 0)
-    print("Clusters=", cluster)
+    clusters = kMedoids(dataset, 5, np.inf, 0)
+
+    for i in range(0, len(clusters.keys())):
+        print("Cluster ", i, "= ", len(clusters.get(i)))
+
+    build_decision_tree(df)
 
 
 def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
 
     cluster_sum = 0
 
-    while True or count == 100:
-
-        print(count)
+    while True:
 
         if medoids is None or not medoids:
             medoids = random.sample(data, 5)
@@ -33,21 +90,21 @@ def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
             medoids.pop()
             medoids.pop()
             medoids.pop()
-            medoids+random.sample(data, 3)
+            medoids += random.sample(data, 3)
 
         clusters = defaultdict(list)
 
-        for med in medoids:
+        for item in data:
             temp = []
-            for item in data:
+            for i in range(0, len(medoids)):
+                med = medoids[i]
                 if med is None or not med:
                     break
                 else:
                     temp.append(np.linalg.norm(
                         med[0]-item[0])+np.linalg.norm(med[1]-item[1]))
-
-                    min = np.argmin(temp)
-                    clusters[min].append(item)
+            min_index = np.argmin(temp)
+            clusters[min_index].append(item)
 
         for i in range(0, len(medoids)):
             inter_cluster = clusters[i]
@@ -56,9 +113,6 @@ def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
                 medoid = medoids[i]
                 cluster_sum += (np.linalg.norm(medoid[0]-item_cluster[0]) +
                                 np.linalg.norm(medoid[1]-item_cluster[1]))
-
-        print("Previous Cost= ", prev_cost)
-        print("Cluster Sum = ", cluster_sum)
 
         if cluster_sum < prev_cost:
             prev_cost = cluster_sum
