@@ -61,6 +61,7 @@ def build_decision_tree(df):
     decision_tree.fit(X_train, Y_train)
     print('Accuracy', decision_tree.score(X_test, Y_test))
     # Draw graph
+    dot_data = export_graphviz(decision_tree, out_file='tree.dot')
     graph = pydotplus.graph_from_dot_data(dot_data)
     graph.write_png('decisionTree.png')
 
