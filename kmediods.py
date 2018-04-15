@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import train_test_split
+from sklearn import tree
 from collections import defaultdict
 import random
 import pydot
@@ -35,6 +36,21 @@ def get_movie_class(row):
     return row
 
 
+def plot_graph(clusters, count):
+
+    for i in range(0, len(clusters.keys())):
+        data = clusters.get(i)
+        #lb = 'cluster'+str(i+1)
+        for j in range(0, len(data)):
+            df = data[j]
+            plt.scatter(df[0], df[1], c=i, alpha=0.5)
+    plt.xlabel('IMDb Scores')
+    plt.ylabel('Gross')
+    plt.title('K-medoid clusters')
+    plt.legend()
+    plt.show()
+
+
 def print_metrics(y_test, y_pred, threshold=0.5):
     print("Precision", metrics.precision_score(y_test, y_pred > threshold))
     print("Recall", metrics.recall_score(y_test, y_pred > threshold))
@@ -48,7 +64,8 @@ def build_decision_tree(df):
     df = df.reset_index()
     df = df.apply(get_movie_class, axis=1)  # for each row
     df_before_split = df.copy()
-    split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
+    split = StratifiedShuffleSplit(
+        n_splits=1, test_size=0.2, random_state=0)
     for train_index, test_index in split.split(df, df['Class']):
         train_set = df.loc[train_index]
         test_set = df.loc[test_index]
@@ -61,9 +78,12 @@ def build_decision_tree(df):
     decision_tree.fit(X_train, Y_train)
     print('Accuracy', decision_tree.score(X_test, Y_test))
     # Draw graph
-    dot_data = export_graphviz(decision_tree, out_file='tree.dot')
-    graph = pydotplus.graph_from_dot_data(dot_data)
-    graph.write_png('decisionTree.png')
+    '''dot_data = StringIO()
+    export_graphviz(decision_tree, out_file=dot_data,
+                    filled=True, rounded=True,
+                    special_characters=True, impurity=False, feature_names=train_set.columns.drop('Class').drop('index'))
+    graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
+    graph.write_png("dtree.png")'''
 
 
 def load_datas():
@@ -71,9 +91,7 @@ def load_datas():
     df = df[['gross', 'imdb_score']].dropna()
     dataset = df.values.tolist()
     clusters = kMedoids(dataset, 5, np.inf, 0)
-
-    for i in range(0, len(clusters.keys())):
-        print("Cluster ", i, "= ", len(clusters.get(i)))
+    plot_graph(clusters, len(clusters.keys()))
 
     build_decision_tree(df)
 
@@ -88,9 +106,9 @@ def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
             medoids = random.sample(data, k)
         else:
             random.shuffle(medoids)
-            for _ in range(0, k/2):
+            for _ in range(0, int(k/2)):
                 medoids.pop()
-            medoids += random.sample(data, k/2)
+            medoids += random.sample(data, int(k/2))
 
         clusters = defaultdict(list)
 
@@ -126,3 +144,4 @@ def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
 
 if __name__ == "__main__":
     load_datas()
+    # plot_graph()
