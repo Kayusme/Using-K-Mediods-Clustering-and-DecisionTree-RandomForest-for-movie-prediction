@@ -24,26 +24,27 @@ pd.set_option('display.max_columns', None)
 """
 
 
-def get_movie_class(row):
-    if 8 <= row['imdb_score'] <= 10:
-        row['Class'] = 'great'
-    elif 7 <= row['imdb_score'] < 8:
-        row['Class'] = 'good'
-    elif 6 <= row['imdb_score'] < 7:
-        row['Class'] = 'average'
-    else:
-        row['Class'] = 'bad'
-    return row
+def assign_target(row, clusters):
 
-
-def plot_graph(clusters, count):
+    x = row['movie_title']
 
     for i in range(0, len(clusters.keys())):
         data = clusters.get(i)
-        #lb = 'cluster'+str(i+1)
         for j in range(0, len(data)):
             df = data[j]
-            plt.scatter(df[0], df[1], c=i, alpha=0.5)
+            if df[2] == x:
+                row['Cluster'] = 'Cluster'+str(i)
+
+    return row
+
+
+def plot_graph(clusters):
+    markers = ['bo', 'go', 'ro', 'b+', 'r+', 'g+']
+    for i in range(0, len(clusters.keys())):
+        data = clusters.get(i)
+        for j in range(0, len(data)):
+            df = data[j]
+            plt.plot(df[0], df[1], markers[i])
     plt.xlabel('IMDb Scores')
     plt.ylabel('Gross')
     plt.title('K-medoid clusters')
@@ -60,19 +61,21 @@ def print_metrics(y_test, y_pred, threshold=0.5):
 
 def build_decision_tree(df):
 
-    df = df.dropna()
-    df = df.reset_index()
-    df = df.apply(get_movie_class, axis=1)  # for each row
     df_before_split = df.copy()
+
     split = StratifiedShuffleSplit(
         n_splits=1, test_size=0.2, random_state=0)
-    for train_index, test_index in split.split(df, df['Class']):
+
+    for train_index, test_index in split.split(df, df['Cluster']):
         train_set = df.loc[train_index]
         test_set = df.loc[test_index]
-        Y_train = train_set.Class
-    X_train = train_set[train_set.columns.drop('Class').drop('index')]
-    Y_test = test_set.Class
-    X_test = test_set[test_set.columns.drop('Class').drop('index')]
+
+    Y_train = train_set.Cluster
+    X_train = train_set[train_set.columns.drop(
+        'Cluster').drop('index').drop('movie_title')]
+    Y_test = test_set.Cluster
+    X_test = test_set[test_set.columns.drop(
+        'Cluster').drop('index').drop('movie_title')]
 
     decision_tree = DecisionTreeClassifier()
     decision_tree.fit(X_train, Y_train)
@@ -86,19 +89,26 @@ def build_decision_tree(df):
     graph.write_png("dtree.png")'''
 
 
-def load_datas():
+def init_app():
     df = pd.read_csv('movie_metadata.csv')
-    df = df[['gross', 'imdb_score']].dropna()
-    dataset = df.values.tolist()
+    dataset = df[['gross', 'imdb_score', 'movie_title']
+                 ].dropna().values.tolist()
     clusters = kMedoids(dataset, 5, np.inf, 0)
-    plot_graph(clusters, len(clusters.keys()))
+    plot_graph(clusters)
 
+    columns = ['num_user_for_reviews', 'budget',
+               'content_rating', 'movie_facebook_likes', 'num_critic_for_reviews', 'movie_title']
+
+    df = df[columns].dropna()
+    df = df.reset_index()
+    df = df.apply(assign_target, args=(clusters,), axis=1)  # for each row
     build_decision_tree(df)
 
 
 def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
 
     cluster_sum = 0
+    random.seed(0)
 
     while True:
 
@@ -143,5 +153,4 @@ def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
 
 
 if __name__ == "__main__":
-    load_datas()
-    # plot_graph()
+    init_app()
