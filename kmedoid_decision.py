@@ -13,6 +13,7 @@ import random
 import pydot
 from io import StringIO
 import pydotplus
+from multiprocessing import Process
 
 def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
 
@@ -97,7 +98,10 @@ def init_app():
     dataset = df[['gross', 'imdb_score', 'movie_title']]
     dataset = dataset.values.tolist()
     clusters = kMedoids(dataset, 5, np.inf, 0)
-    plot_graph(clusters)
+
+    #Plot Cluster graph
+    p = Process(target=plot_graph, args=(clusters,))
+    p.start()
     
     #choosing features for decision tree
     columns = ['num_user_for_reviews', 'budget'
