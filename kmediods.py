@@ -2,8 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
-from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.preprocessing import scale
 from sklearn import tree
 from collections import defaultdict
 import random
@@ -15,15 +16,6 @@ np.set_printoptions(threshold='nan')
 pd.set_option('display.max_columns', None)
 
 
-# create a target var based on IMDB score
-"""
- 8 <= imdb <= 10 => 'great'
- 7 <= imdb < 8 => 'good'
- 6 <= imdb < 7 => 'average'
- imdb < 6 => 'bad'
-"""
-
-
 def assign_target(row, clusters):
 
     x = row['movie_title']
@@ -33,7 +25,7 @@ def assign_target(row, clusters):
         for j in range(0, len(data)):
             df = data[j]
             if df[2] == x:
-                row['Cluster'] = 'Cluster'+str(i)
+                row['cluster'] = 'cluster'+str(i)
 
     return row
 
@@ -52,34 +44,38 @@ def plot_graph(clusters):
     plt.show()
 
 
-def print_metrics(y_test, y_pred, threshold=0.5):
-    print("Precision", metrics.precision_score(y_test, y_pred > threshold))
-    print("Recall", metrics.recall_score(y_test, y_pred > threshold))
-    print("F1", metrics.f1_score(y_test, y_pred > threshold))
-    print("AUC", metrics.roc_auc_score(y_test, y_pred_lr))
-
-
 def build_decision_tree(df):
 
     df_before_split = df.copy()
 
-    split = StratifiedShuffleSplit(
+    splitSet = StratifiedShuffleSplit(
         n_splits=1, test_size=0.2, random_state=0)
 
-    for train_index, test_index in split.split(df, df['Cluster']):
+    for train_index, test_index in splitSet.split(df, df['cluster']):
         train_set = df.loc[train_index]
         test_set = df.loc[test_index]
 
-    Y_train = train_set.Cluster
-    X_train = train_set[train_set.columns.drop(
-        'Cluster').drop('index').drop('movie_title')]
-    Y_test = test_set.Cluster
-    X_test = test_set[test_set.columns.drop(
-        'Cluster').drop('index').drop('movie_title')]
+    Y_train = train_set.cluster
+    X_train = train_set[train_set.columns.drop('cluster').drop('index')]
+    Y_test = test_set.cluster
+    X_test = test_set[test_set.columns.drop('cluster').drop('index')]
 
     decision_tree = DecisionTreeClassifier()
     decision_tree.fit(X_train, Y_train)
+
+    redictions = decision_tree.predict(X_test)
     print('Accuracy', decision_tree.score(X_test, Y_test))
+    print(confusion_matrix(Y_test, predictions))
+    print('\n')
+    print(classification_report(Y_test, predictions))
+
+    rfc = RandomForestClassifier(n_estimators=2000)
+    rfc.fit(X_train, Y_train)
+
+    rfc_pred = rfc.predict(X_test)
+    print(confusion_matrix(Y_test, rfc_pred))
+    print('\n')
+    print(classification_report(Y_test, rfc_pred))
     # Draw graph
     '''dot_data = StringIO()
     export_graphviz(decision_tree, out_file=dot_data,
@@ -90,16 +86,15 @@ def build_decision_tree(df):
 
 
 def init_app():
-    df = pd.read_csv('movie_metadata.csv')
-    dataset = df[['gross', 'imdb_score', 'movie_title']
-                 ].dropna().values.tolist()
+    df = pd.read_csv('movie_metadata.csv').dropna()
+    dataset = df[['gross', 'imdb_score', 'movie_title']].values.tolist()
     clusters = kMedoids(dataset, 5, np.inf, 0)
     plot_graph(clusters)
 
-    columns = ['num_user_for_reviews', 'budget',
-               'content_rating', 'movie_facebook_likes', 'num_critic_for_reviews', 'movie_title']
+    columns = ['num_user_for_reviews', 'budget', 'num_critic_for_reviews',
+               'movie_title', 'movie_facebook_likes', 'num_voted_users', 'duration']
 
-    df = df[columns].dropna()
+    df = df[columns]
     df = df.reset_index()
     df = df.apply(assign_target, args=(clusters,), axis=1)  # for each row
     build_decision_tree(df)
