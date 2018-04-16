@@ -63,7 +63,7 @@ def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
 
 
 def plot_graph(clusters):
-    markers = ['bo', 'go', 'ro', 'b+', 'r+', 'g+']
+    markers = ['bo', 'go', 'ro', 'c+', 'm+', 'y+']
     for i in range(0, len(clusters.keys())):
         data = clusters.get(i)
         for j in range(0, len(data)):
