@@ -14,6 +14,9 @@ import pydot
 from io import StringIO
 import pydotplus
 from multiprocessing import Process
+import tkinter as tk
+from tkinter import filedialog
+from AppGUI import EditorApp
 
 def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
 
@@ -89,10 +92,28 @@ def assign_target(row, clusters):
 
     return row
 
+def open_csv(root):
+    root.filename = filedialog.askopenfilename(parent=root,filetypes=[("All files","*.csv")])
+    print(root.filename)
+
+def gui(df):
+
+#   start
+    root = tk.Tk()
+    editor = EditorApp(root, df)
+    root.mainloop()  # until closes window
+
+#   re-assign dataframe
+    new_df = editor.df
+
+    print("THIS IS THE NEW DATABASE:")
+    print(new_df.to_string(index=False))
+
 def init_app():
-   
+
     #loading dataset
     df = pd.read_csv('movie_metadata.csv').dropna()
+    gui(df)
 
     #choosing features and running kmediods
     dataset = df[['gross', 'imdb_score', 'movie_title']]

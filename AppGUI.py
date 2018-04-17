@@ -11,7 +11,7 @@ class EditorApp:
         dataframe : pandas.DataFrame object"""
         self.root = master
         self.root.minsize(width=600, height=400)
-        self.root.title('database editor')
+        self.root.title('IMDb movie success predictor')
 
         self.main = tk.Frame(self.root)
         self.main.pack(fill=tk.BOTH, expand=True)
@@ -378,27 +378,3 @@ class EditorApp:
                             for i, entry in enumerate(col_entries)]
         new_line = "".join(new_line_entries)
         return new_line
-
-
-def main():
-    #   make a test dataframe here of integers, can be anything really
-    df = pandas.DataFrame(
-        pandas.np.random.randint(
-            0, 100, (1000, 20)), columns=[
-            'col_%d' %
-            x for x in range(20)])
-
-#   start
-    root = tk.Tk()
-    editor = EditorApp(root, df)
-    root.mainloop()  # until closes window
-
-#   re-assign dataframe
-    new_df = editor.df
-
-    print("THIS IS THE NEW DATABASE:")
-    print(new_df.to_string(index=False))
-
-
-if __name__ == '__main__':
-    main()
