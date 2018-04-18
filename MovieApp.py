@@ -191,48 +191,11 @@ class MovieApp:
             command=self.show_results)
         self.show_decision.grid(row=2,columnspan=2, sticky=tk.W + tk.E)
 
-        '''self.old_val_lab = tk.Label(
-            self.editorFrame,
-            text='Old value:',
-            **self.lab_opt)
-        self.old_val_lab.grid(row=1, sticky=tk.W, column=0)
-        
-        self.entry_box_old = tk.Entry(
-            self.editorFrame,
-            state=tk.DISABLED,
-            bd=2,
-            relief=tk.GROOVE)
-        self.entry_box_old.grid(row=1, column=1, sticky=tk.E)
-
-#       entry widget
-        self.new_val_lab = tk.Label(
-            self.editorFrame,
-            text='New value:',
-            **self.lab_opt)
-        self.new_val_lab.grid(row=1, sticky=tk.E, column=2)
-        self.entry_box_new = tk.Entry(self.editorFrame, bd=2, relief=tk.GROOVE)
-        self.entry_box_new.grid(row=1, column=3, sticky=tk.E + tk.W)'''
-
-#       make update button
-        '''self.update_b = tk.Button(
-            self.editorFrame,
-            text='Update selection',
-            relief=tk.RAISED,
-            command=self._updateDF_multi)
-        self.update_b.grid(row=2, columnspan=1, column=3, sticky=tk.W + tk.E)'''
-
-#       make undo button
-        '''self.undo_b = tk.Button(
-            self.editorFrame,
-            text='Undo',
-            command=self._undo)
-        self.undo_b.grid(row=2, columnspan=1, column=1, sticky=tk.W + tk.E)'''
-
 ################
 # SELECT MODES #
 ################
     def _sel_mode(self):
-        """ creates a frame for toggling between interaction modes wt"""
+        
         self.mode_frame = tk.Frame(
             self.main, bd=2, padx=2, pady=2, relief=tk.GROOVE)
         self.mode_frame.pack(fill=tk.BOTH, side=tk.LEFT)
@@ -484,27 +447,23 @@ class MovieApp:
 
         predictions = decision_tree.predict(X_test)
 
-        output = 'Accuracy of the decision tree='+str(decision_tree.score(X_test, Y_test))+('\n')
-        print('Accuracy of the decision tree=', decision_tree.score(X_test, Y_test))
+        output = 'Score of the decision tree='+str(decision_tree.score(X_test, Y_test))+('\n')
 
-        output = output+str(confusion_matrix(Y_test,predictions))+('\n')
-        print(confusion_matrix(Y_test,predictions))
-        print('\n')
-        output = output+str(classification_report(Y_test,predictions))+('\n')
-        print(classification_report(Y_test,predictions))
-        print('\n')
+        output = output+'\nDecision Tree Confusion Matrix\n\n'+str(confusion_matrix(Y_test,predictions))+('\n')
+       
+        output = output+'\nDecision Tree Classification Report\n\n'+str(classification_report(Y_test,predictions))+('\n')
 
         #Applying random forest classifier
         rfc = RandomForestClassifier(n_estimators=2000)
         rfc.fit(X_train, Y_train)
-        output = output+('Random Forest Statistics\n')
-        print('Random Forest Statistics\n')
+        output = output+('Random Forest Statistics\n')s
+
         rfc_pred = rfc.predict(X_test)
-        output = output+str(confusion_matrix(Y_test,rfc_pred))+('\n')
-        print(confusion_matrix(Y_test,rfc_pred))
-        print('\n')
-        output = output+str(classification_report(Y_test,rfc_pred))+('\n')
-        print(classification_report(Y_test,rfc_pred))
+        output = output+'\nRandom Forest Confusion Matrix\n\n'+str(confusion_matrix(Y_test,rfc_pred))+('\n')
+        
+        output = output+'\nRandom Forest Classification Report\n\n'+str(classification_report(Y_test,rfc_pred))+('\n')
+       
+        print(output)
 
         self.results = output
 
@@ -526,10 +485,6 @@ if __name__=='__main__':
     editor = MovieApp(root, df[columns], clusters)
 
     root.mainloop()
-
-    #Plot Cluster graph
-    #p = Process(target=plot_graph, args=(clusters,))
-    #p.start()
     
     #Visualising the decision tree (runs only in Jupyter notebook)
     '''dot_data = StringIO()
