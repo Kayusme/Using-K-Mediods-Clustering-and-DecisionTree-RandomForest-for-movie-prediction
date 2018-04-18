@@ -16,7 +16,7 @@ import pydotplus
 from multiprocessing import Process
 import tkinter as tk
 from tkinter import filedialog
-from AppGUI import EditorApp
+from AppGUI import MovieApp
 
 def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
 
@@ -97,23 +97,21 @@ def open_csv(root):
     print(root.filename)
 
 def gui(df):
-
 #   start
     root = tk.Tk()
     editor = EditorApp(root, df)
     root.mainloop()  # until closes window
 
-#   re-assign dataframe
-    new_df = editor.df
-
-    print("THIS IS THE NEW DATABASE:")
-    print(new_df.to_string(index=False))
-
 def init_app():
 
+    columns = ['movie_title','num_user_for_reviews', 'budget', 'num_critic_for_reviews','movie_facebook_likes',
+    'num_voted_users','duration','gross', 'imdb_score']
+    
     #loading dataset
-    df = pd.read_csv('movie_metadata.csv').dropna()
-    gui(df)
+    df = pd.read_csv('movie_metadata.csv').dropna(axis=0).reset_index(drop=True)
+    
+    p = Process(target=gui, args=(df[columns],))
+    p.start()
 
     #choosing features and running kmediods
     dataset = df[['gross', 'imdb_score', 'movie_title']]

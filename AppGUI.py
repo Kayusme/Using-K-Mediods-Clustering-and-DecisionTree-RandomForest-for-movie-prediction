@@ -1,12 +1,31 @@
-import tkinter as tk
 from tkinter import font as tkFont
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.tree import DecisionTreeClassifier, export_graphviz
+from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import scale
+from sklearn import tree
+from collections import defaultdict
+import random
+import pydot
+from io import StringIO
+import pydotplus
+from multiprocessing import Process
+import tkinter as tk
+from tkinter import filedialog
+import kmedoid_decision as kmd
+from tkinter import messagebox
 
 import pandas
 
 
-class EditorApp:
+class MovieApp:
 
-    def __init__(self, master, dataframe, edit_rows=[]):
+    def __init__(self, master, dataframe, clusters,edit_rows=[]):
         """ master    : tK parent widget
         dataframe : pandas.DataFrame object"""
         self.root = master
@@ -20,6 +39,7 @@ class EditorApp:
 
 #       the dataframe
         self.df = dataframe
+        self.clusters = clusters
         self.dat_cols = list(self.df)
         if edit_rows:
             self.dat_rows = edit_rows
@@ -32,6 +52,7 @@ class EditorApp:
         self.sub_datstring = self.sub_data.to_string(
             index=False, col_space=13).split('\n')
         self.title_string = self.sub_datstring[0]
+        self.results = ""
 
 # save the format of the lines, so we can update them without re-running
 # df.to_string()
@@ -56,7 +77,6 @@ class EditorApp:
         self._pack_bind_lb()
         self._fill_listbox()
         self._make_editor_frame()
-        self._sel_mode()
 
 ##############
 # SCROLLBARS #
@@ -134,6 +154,7 @@ class EditorApp:
 # FRAME FOR EDITING #
 #####################
     def _make_editor_frame(self):
+        
         """ make a frame for editing dataframe rows"""
         self.editorFrame = tk.Frame(
             self.main, bd=2, padx=2, pady=2, relief=tk.GROOVE)
@@ -142,25 +163,40 @@ class EditorApp:
 #       column editor
         self.col_sel_lab = tk.Label(
             self.editorFrame,
-            text='Select a column to edit:',
+            text='Show Clusters:',
             **self.lab_opt)
         self.col_sel_lab.grid(row=0, columnspan=2, sticky=tk.W + tk.E)
 
-        self.opt_var = tk.StringVar()
-        self.opt_var.set(self.dat_cols[0])
-        self.opt = tk.OptionMenu(
+        self.show_cluster = tk.Button(
             self.editorFrame,
-            self.opt_var,
-            *
-            list(
-                self.df))
-        self.opt.grid(row=0, columnspan=2, column=2, sticky=tk.E + tk.W)
+            text='View Clusters',
+            command=self.plot_graph)
+        self.show_cluster.grid(row=0,column=3, columnspan=2, sticky=tk.W + tk.E)
 
-        self.old_val_lab = tk.Label(
+        self.col_sel_lab = tk.Label(
+            self.editorFrame,
+            text='Process Clusters:',
+            **self.lab_opt)
+        self.col_sel_lab.grid(row=1, columnspan=2, sticky=tk.W + tk.E)
+
+        self.show_cluster = tk.Button(
+            self.editorFrame,
+            text='Process',
+            command=self.process_data_set)
+        self.show_cluster.grid(row=1,column=3, columnspan=2, sticky=tk.W + tk.E)
+
+        self.show_decision = tk.Button(
+            self.editorFrame,
+            text='Show Decision Tree Results',
+            command=self.show_results)
+        self.show_decision.grid(row=2,columnspan=2, sticky=tk.W + tk.E)
+
+        '''self.old_val_lab = tk.Label(
             self.editorFrame,
             text='Old value:',
             **self.lab_opt)
         self.old_val_lab.grid(row=1, sticky=tk.W, column=0)
+        
         self.entry_box_old = tk.Entry(
             self.editorFrame,
             state=tk.DISABLED,
@@ -175,22 +211,22 @@ class EditorApp:
             **self.lab_opt)
         self.new_val_lab.grid(row=1, sticky=tk.E, column=2)
         self.entry_box_new = tk.Entry(self.editorFrame, bd=2, relief=tk.GROOVE)
-        self.entry_box_new.grid(row=1, column=3, sticky=tk.E + tk.W)
+        self.entry_box_new.grid(row=1, column=3, sticky=tk.E + tk.W)'''
 
 #       make update button
-        self.update_b = tk.Button(
+        '''self.update_b = tk.Button(
             self.editorFrame,
             text='Update selection',
             relief=tk.RAISED,
             command=self._updateDF_multi)
-        self.update_b.grid(row=2, columnspan=1, column=3, sticky=tk.W + tk.E)
+        self.update_b.grid(row=2, columnspan=1, column=3, sticky=tk.W + tk.E)'''
 
 #       make undo button
-        self.undo_b = tk.Button(
+        '''self.undo_b = tk.Button(
             self.editorFrame,
             text='Undo',
             command=self._undo)
-        self.undo_b.grid(row=2, columnspan=1, column=1, sticky=tk.W + tk.E)
+        self.undo_b.grid(row=2, columnspan=1, column=1, sticky=tk.W + tk.E)'''
 
 ################
 # SELECT MODES #
@@ -292,6 +328,16 @@ class EditorApp:
                 self._rewrite()
             self.sync_subdata()
 
+    def _undo(self):
+        if self.update_history:
+            updated_vals = self.update_history.pop()
+            for idx, val in updated_vals['vals'].items():
+                self.row = self.rowmap[idx]
+                self.idx = idx
+                self.df.set_value(self.row, updated_vals['col'], val)
+                self._rewrite()
+            self.sync_subdata()
+
 ####################
 # HISTORY TRACKING #
 ####################
@@ -378,3 +424,117 @@ class EditorApp:
                             for i, entry in enumerate(col_entries)]
         new_line = "".join(new_line_entries)
         return new_line
+    
+    def plot_graph(self):
+        markers = ['bo', 'go', 'ro', 'c+', 'm+', 'y+']
+        clusters = self.clusters
+        for i in range(0, len(clusters.keys())):
+            data = clusters.get(i)
+            for j in range(0, len(data)):
+                df = data[j]
+                plt.plot(df[0], df[1], markers[i])
+        plt.xlabel('IMDb Scores')
+        plt.ylabel('Gross')
+        plt.title('K-medoid clusters')
+        plt.legend()
+        plt.show()
+    
+    def assign_target(self,row):
+
+        x = row['movie_title']
+        clusters = self.clusters
+        for i in range(0, len(clusters.keys())):
+            data = clusters.get(i)
+            for j in range(0, len(data)):
+                df = data[j]
+                if df[2] == x:
+                    row['cluster'] = 'cluster'+str(i)
+
+        return row
+
+    def show_results(self):
+        messagebox.showinfo("Results of the decision tree model",self.results)
+
+    def process_data_set(self):
+        
+        #choosing features for decision tree
+        columns = ['num_user_for_reviews', 'budget'
+                    , 'num_critic_for_reviews', 'movie_title','movie_facebook_likes','num_voted_users','duration']
+        
+        df = self.df[columns]
+        df = df.apply(self.assign_target, axis=1)
+        df.drop(labels = ['movie_title'], axis = 1, inplace = True)
+
+        #creating training and test sets
+        splitSet = StratifiedShuffleSplit(
+                n_splits=1, test_size=0.2, random_state=0)
+
+        for train_index, test_index in splitSet.split(df, df['cluster']):
+            train_set = df.loc[train_index]
+            test_set = df.loc[test_index]
+
+        Y_train = train_set.cluster
+        X_train = train_set[train_set.columns.drop('cluster')]
+        Y_test = test_set.cluster
+        X_test = test_set[test_set.columns.drop('cluster')]
+
+        #Creating decision tree 
+        decision_tree = DecisionTreeClassifier()
+        decision_tree.fit(X_train, Y_train)
+
+        predictions = decision_tree.predict(X_test)
+
+        output = 'Accuracy of the decision tree='+str(decision_tree.score(X_test, Y_test))+('\n')
+        print('Accuracy of the decision tree=', decision_tree.score(X_test, Y_test))
+
+        output = output+str(confusion_matrix(Y_test,predictions))+('\n')
+        print(confusion_matrix(Y_test,predictions))
+        print('\n')
+        output = output+str(classification_report(Y_test,predictions))+('\n')
+        print(classification_report(Y_test,predictions))
+        print('\n')
+
+        #Applying random forest classifier
+        rfc = RandomForestClassifier(n_estimators=2000)
+        rfc.fit(X_train, Y_train)
+        output = output+('Random Forest Statistics\n')
+        print('Random Forest Statistics\n')
+        rfc_pred = rfc.predict(X_test)
+        output = output+str(confusion_matrix(Y_test,rfc_pred))+('\n')
+        print(confusion_matrix(Y_test,rfc_pred))
+        print('\n')
+        output = output+str(classification_report(Y_test,rfc_pred))+('\n')
+        print(classification_report(Y_test,rfc_pred))
+
+        self.results = output
+
+    
+if __name__=='__main__':
+    
+    columns = ['movie_title','num_user_for_reviews', 'budget', 'num_critic_for_reviews','movie_facebook_likes',
+    'num_voted_users','duration','gross', 'imdb_score']
+    
+    #loading dataset
+    df = pd.read_csv('movie_metadata.csv').dropna(axis=0).reset_index(drop=True)
+
+    dataset = df[['gross', 'imdb_score', 'movie_title']]
+    dataset = dataset.values.tolist()
+
+    clusters = kmd.kMedoids(dataset, 5, np.inf, 0)
+    
+    root = tk.Tk()
+    editor = MovieApp(root, df[columns], clusters)
+
+    root.mainloop()
+
+    #Plot Cluster graph
+    #p = Process(target=plot_graph, args=(clusters,))
+    #p.start()
+    
+    #Visualising the decision tree (runs only in Jupyter notebook)
+    '''dot_data = StringIO()
+    export_graphviz(decision_tree, out_file=dot_data,
+                        filled=True, rounded=True,
+                        special_characters=True, impurity=False, feature_names=train_set.columns.drop('cluster').drop('index'))
+    graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
+    graph.write_png("dtree.png")'''
