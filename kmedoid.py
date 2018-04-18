@@ -16,7 +16,7 @@ import pydotplus
 from multiprocessing import Process
 import tkinter as tk
 from tkinter import filedialog
-from AppGUI import MovieApp
+from MovieApp import MovieApp
 
 def kMedoids(data, k, prev_cost, count, clusters=None, medoids=None):
 

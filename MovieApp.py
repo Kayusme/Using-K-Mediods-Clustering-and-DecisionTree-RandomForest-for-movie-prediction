@@ -17,7 +17,7 @@ import pydotplus
 from multiprocessing import Process
 import tkinter as tk
 from tkinter import filedialog
-import kmedoid_decision as kmd
+import kmedoid as kmd
 from tkinter import messagebox
 
 import pandas
