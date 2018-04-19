@@ -19,6 +19,7 @@ import tkinter as tk
 from tkinter import filedialog
 import kmedoid as kmd
 from tkinter import messagebox
+from tkinter import StringVar
 
 import pandas
 
@@ -61,8 +62,16 @@ class MovieApp:
 #       fill in the main frame
         self._fill()
 
-#       updater for tracking changes to the database
         self.update_history = []
+        self.movie_t = StringVar()
+        self.no_usr_rev = StringVar()
+        self.budget = StringVar()
+        self.no_critic_reviews = StringVar()
+        self.fb_likes = StringVar()
+        self.usr_votes = StringVar()
+        self.duration = StringVar()
+
+        self.tree = None
 
 ##################
 # ADDING WIDGETS #
@@ -191,172 +200,11 @@ class MovieApp:
             command=self.show_results)
         self.show_decision.grid(row=2,columnspan=2, sticky=tk.W + tk.E)
 
-################
-# SELECT MODES #
-################
-    def _sel_mode(self):
-        
-        self.mode_frame = tk.Frame(
-            self.main, bd=2, padx=2, pady=2, relief=tk.GROOVE)
-        self.mode_frame.pack(fill=tk.BOTH, side=tk.LEFT)
-
-        tk.Label(self.mode_frame, text='Selection mode', **
-                 self.lab_opt).pack(fill=tk.BOTH, expand=tk.YES)
-
-        self.mode_lb = tk.Listbox(
-            self.mode_frame,
-            height=2,
-            width=16,
-            exportselection=False)
-        self.mode_lb.pack(fill=tk.BOTH, expand=tk.YES)
-        self.mode_lb.insert(tk.END, 'Multiple selection')
-        self.mode_lb.bind('<ButtonRelease-1>', self._mode_lb_callback)
-        self.mode_lb.insert(tk.END, 'Find and replace')
-        self.mode_lb.bind('<ButtonRelease-1>', self._mode_lb_callback)
-        self.mode_lb.select_set(0)
-
-    def _mode_lb_callback(self, event):
-        items = self.mode_lb.curselection()
-        if items[0] == 0:
-            self._swap_mode('multi')
-        elif items[0] == 1:
-            self._swap_mode('findrep')
-
-    def _swap_mode(self, mode='multi'):
-        """swap between modes of interaction with database"""
-        self.lb.selection_clear(0, tk.END)
-        self._swap_lab(mode)
-        if mode == 'multi':
-            self.lb.config(state=tk.NORMAL)
-            self.entry_box_old.config(state=tk.DISABLED)
-            self.update_b.config(
-                command=self._updateDF_multi,
-                text='Update multi selection')
-        elif mode == 'findrep':
-            self.lb.config(state=tk.DISABLED)
-            self.entry_box_old.config(state=tk.NORMAL)
-            self.update_b.config(
-                command=self._updateDF_findrep,
-                text='Find and replace')
-        self.entry_box_new.delete(0, tk.END)
-        self.entry_box_new.insert(0, "Enter new value")
-
-    def _swap_lab(self, mode='multi'):
-        """ alter the labels on the editor frame"""
-        if mode == 'multi':
-            self.old_val_lab.config(text='Old value:')
-            self.new_val_lab.config(text='New value:')
-        elif mode == 'findrep':
-            self.old_val_lab.config(text='Find:')
-            self.new_val_lab.config(text='Replace:')
-
-#################
-# EDIT COMMANDS #
-#################
-    def _updateDF_multi(self):
-        """ command for updating via selection"""
-        self.col = self.opt_var.get()
-        items = self.lb.curselection()
-        self._track_items(items)
-
-    def _updateDF_findrep(self):
-        """ command for updating via find/replace"""
-        self.col = self.opt_var.get()
-        old_val = self.entry_box_old.get()
-        try:
-            items = pandas.np.where(
-                self.sub_data[
-                    self.col].astype(str) == old_val)[0]
-        except TypeError as err:
-            self.errmsg(
-                '%s: `%s` for column `%s`!' %
-                (err, str(old_val), self.col))
-            return
-        if not items.size:
-            self.errmsg(
-                'Value`%s` not found in column `%s`!' %
-                (str(old_val), self.col))
-            return
-        else:
-            self._track_items(items)
-            self.lb.config(state=tk.DISABLED)
-
-    def _undo(self):
-        if self.update_history:
-            updated_vals = self.update_history.pop()
-            for idx, val in updated_vals['vals'].items():
-                self.row = self.rowmap[idx]
-                self.idx = idx
-                self.df.set_value(self.row, updated_vals['col'], val)
-                self._rewrite()
-            self.sync_subdata()
-
-    def _undo(self):
-        if self.update_history:
-            updated_vals = self.update_history.pop()
-            for idx, val in updated_vals['vals'].items():
-                self.row = self.rowmap[idx]
-                self.idx = idx
-                self.df.set_value(self.row, updated_vals['col'], val)
-                self._rewrite()
-            self.sync_subdata()
-
-####################
-# HISTORY TRACKING #
-####################
-    def _track_items(self, items):
-        """ this strings several functions together,
-        updates database, tracks changes, and updates database viewer"""
-        self._init_hist_tracker()
-        for i in items:
-            self.idx = i
-            self.row = self.rowmap[i]
-            self._track()
-            self._setval()
-            self._rewrite()
-        self._update_hist_tracker()
-#       update sub_data used w find and replace
-        self.sync_subdata()
-
-    def _setval(self):
-        """ update database"""
-        try:
-            self.df.set_value(self.row, self.col, self.entry_box_new.get())
-        except ValueError:
-            self.errmsg(
-                'Invalid entry `%s` for column `%s`!' %
-                (self.entry_box_new.get(), self.col))
-
-    def _init_hist_tracker(self):
-        """ prepare to track a changes to the database"""
-        self.prev_vals = {}
-        self.prev_vals['col'] = self.col
-        self.prev_vals['vals'] = {}
-
-    def _track(self):
-        """record a change to the database"""
-        self.prev_vals['vals'][self.idx] = str(self.df.ix[self.row, self.col])
-
-    def _update_hist_tracker(self):
-        """ record latest changes to database"""
-        self.update_history.append(self.prev_vals)
-
-    def sync_subdata(self):
-        """ syncs subdata with data"""
-        self.sub_data = self.df.ix[self.dat_rows, self.dat_cols]
-
-#################
-# ERROR MESSAGE #
-#################
-    def errmsg(self, message):
-        """ opens a simple error message"""
-        errWin = tk.Toplevel()
-        tk.Label(
-            errWin,
-            text=message,
-            foreground='white',
-            background='red').pack()
-        tk.Button(errWin, text='Ok', command=errWin.destroy).pack()
+        self.add_movie = tk.Button(
+            self.editorFrame,
+            text='Add a movie',
+            command=self.makeform)
+        self.add_movie.grid(row=2,column=3,columnspan=2, sticky=tk.W + tk.E)
 
 ##################
 # UPDATING LINES #
@@ -418,11 +266,54 @@ class MovieApp:
     def show_results(self):
         messagebox.showinfo("Results of the decision tree model",self.results)
 
+    def makeform(self):
+
+        master = tk.Toplevel(self.root)
+        master.geometry("800x480")
+
+        tk.Label(master, text="Movie Title").grid(row=0,columnspan=10)
+        tk.Label(master, text="Number of user reviews").grid(row=1,columnspan=10)
+        tk.Label(master, text="Budget").grid(row=2,columnspan=10)
+        tk.Label(master, text="Number of critic reviews").grid(row=3,columnspan=10)
+        tk.Label(master, text="Movie facebook likes").grid(row=4,columnspan=10)
+        tk.Label(master, text="Number of user votes").grid(row=5,columnspan=10)
+        tk.Label(master, text="Duration").grid(row=6,columnspan=10)
+
+        e1 = tk.Entry(master, textvariable=self.movie_t)
+        e2 = tk.Entry(master, textvariable=self.no_usr_rev)
+        e3 = tk.Entry(master, textvariable=self.budget)
+        e4 = tk.Entry(master, textvariable=self.no_critic_reviews)
+        e5 = tk.Entry(master, textvariable=self.fb_likes)
+        e6 = tk.Entry(master, textvariable=self.usr_votes)
+        e7 = tk.Entry(master, textvariable=self.duration)
+
+        e1.grid(row=0, column=11)
+        e2.grid(row=1, column=11)
+        e3.grid(row=2, column=11)
+        e4.grid(row=3, column=11)
+        e5.grid(row=4, column=11)
+        e6.grid(row=5, column=11)
+        e7.grid(row=6, column=11)
+
+        btn = tk.Button(master,text='Add',command=self.process_form)
+        btn.grid(row=8,column=3,columnspan=2, sticky=tk.W + tk.E)
+
+    def process_form(self):
+
+        df = pd.DataFrame([[int(self.no_usr_rev.get()),float(self.budget.get()),int(self.no_critic_reviews.get()),int(self.fb_likes.get()),int(self.usr_votes.get()),int(self.duration.get())]],
+        columns=['num_user_for_reviews', 'budget','num_critic_for_reviews','movie_facebook_likes',
+        'num_voted_users','duration'])
+
+        result = 'The movie '+ self.movie_t.get() + ' is a part of '+self.tree.predict(df)
+        result += '\nRefer to the classification report for more details'
+        messagebox.showinfo("Prediction of the movie",result)
+
+
     def process_data_set(self):
         
         #choosing features for decision tree
-        columns = ['num_user_for_reviews', 'budget'
-                    , 'num_critic_for_reviews', 'movie_title','movie_facebook_likes','num_voted_users','duration']
+        columns = [ 'movie_title','num_user_for_reviews', 'budget'
+                    , 'num_critic_for_reviews','movie_facebook_likes','num_voted_users','duration']
         
         df = self.df[columns]
         df = df.apply(self.assign_target, axis=1)
@@ -444,7 +335,7 @@ class MovieApp:
         #Creating decision tree 
         decision_tree = DecisionTreeClassifier()
         decision_tree.fit(X_train, Y_train)
-
+        self.tree = decision_tree
         predictions = decision_tree.predict(X_test)
 
         output = 'Score of the decision tree='+str(decision_tree.score(X_test, Y_test))+('\n')
@@ -456,7 +347,7 @@ class MovieApp:
         #Applying random forest classifier
         rfc = RandomForestClassifier(n_estimators=2000)
         rfc.fit(X_train, Y_train)
-        output = output+('Random Forest Statistics\n')s
+        output = output+('Random Forest Statistics\n')
 
         rfc_pred = rfc.predict(X_test)
         output = output+'\nRandom Forest Confusion Matrix\n\n'+str(confusion_matrix(Y_test,rfc_pred))+('\n')
