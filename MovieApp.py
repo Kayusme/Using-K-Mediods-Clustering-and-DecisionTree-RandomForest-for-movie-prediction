@@ -54,6 +54,7 @@ class MovieApp:
             index=False, col_space=13).split('\n')
         self.title_string = self.sub_datstring[0]
         self.results = ""
+        self.clicked=0
 
 # save the format of the lines, so we can update them without re-running
 # df.to_string()
@@ -264,48 +265,63 @@ class MovieApp:
         return row
 
     def show_results(self):
-        messagebox.showinfo("Results of the decision tree model",self.results)
-
+        if self.clicked >=1:
+            messagebox.showinfo("Results of the decision tree model",self.results)
+        else:
+            messagebox.showerror("Please process the clusters","Please press the process button to generate the results")
+        
     def makeform(self):
 
-        master = tk.Toplevel(self.root)
-        master.geometry("800x480")
+        if self.clicked ==0:
+            messagebox.showerror("Please process the clusters","Please press the process button before this")
+        else:
+            master = tk.Toplevel(self.root)
+            master.geometry("350x350")
 
-        tk.Label(master, text="Movie Title").grid(row=0,columnspan=10)
-        tk.Label(master, text="Number of user reviews").grid(row=1,columnspan=10)
-        tk.Label(master, text="Budget").grid(row=2,columnspan=10)
-        tk.Label(master, text="Number of critic reviews").grid(row=3,columnspan=10)
-        tk.Label(master, text="Movie facebook likes").grid(row=4,columnspan=10)
-        tk.Label(master, text="Number of user votes").grid(row=5,columnspan=10)
-        tk.Label(master, text="Duration").grid(row=6,columnspan=10)
+            tk.Label(master, text="Movie Title").grid(row=0,columnspan=10)
+            tk.Label(master, text="Number of user reviews").grid(row=1,columnspan=10)
+            tk.Label(master, text="Budget").grid(row=2,columnspan=10)
+            tk.Label(master, text="Number of critic reviews").grid(row=3,columnspan=10)
+            tk.Label(master, text="Movie facebook likes").grid(row=4,columnspan=10)
+            tk.Label(master, text="Number of user votes").grid(row=5,columnspan=10)
+            tk.Label(master, text="Duration").grid(row=6,columnspan=10)
 
-        e1 = tk.Entry(master, textvariable=self.movie_t)
-        e2 = tk.Entry(master, textvariable=self.no_usr_rev)
-        e3 = tk.Entry(master, textvariable=self.budget)
-        e4 = tk.Entry(master, textvariable=self.no_critic_reviews)
-        e5 = tk.Entry(master, textvariable=self.fb_likes)
-        e6 = tk.Entry(master, textvariable=self.usr_votes)
-        e7 = tk.Entry(master, textvariable=self.duration)
+            e1 = tk.Entry(master, textvariable=self.movie_t)
+            e2 = tk.Entry(master, textvariable=self.no_usr_rev)
+            e3 = tk.Entry(master, textvariable=self.budget)
+            e4 = tk.Entry(master, textvariable=self.no_critic_reviews)
+            e5 = tk.Entry(master, textvariable=self.fb_likes)
+            e6 = tk.Entry(master, textvariable=self.usr_votes)
+            e7 = tk.Entry(master, textvariable=self.duration)
 
-        e1.grid(row=0, column=11)
-        e2.grid(row=1, column=11)
-        e3.grid(row=2, column=11)
-        e4.grid(row=3, column=11)
-        e5.grid(row=4, column=11)
-        e6.grid(row=5, column=11)
-        e7.grid(row=6, column=11)
+            e1.grid(row=0, column=11)
+            e2.grid(row=1, column=11)
+            e3.grid(row=2, column=11)
+            e4.grid(row=3, column=11)
+            e5.grid(row=4, column=11)
+            e6.grid(row=5, column=11)
+            e7.grid(row=6, column=11)
 
-        btn = tk.Button(master,text='Add',command=self.process_form)
-        btn.grid(row=8,column=3,columnspan=2, sticky=tk.W + tk.E)
+            btn = tk.Button(master,text='Predict',command=self.process_form)
+            btn.grid(row=8,column=3,columnspan=5, sticky=tk.W + tk.E)
 
     def process_form(self):
 
-        df = pd.DataFrame([[int(self.no_usr_rev.get()),float(self.budget.get()),int(self.no_critic_reviews.get()),int(self.fb_likes.get()),int(self.usr_votes.get()),int(self.duration.get())]],
+        a = self.no_usr_rev.get()
+        b = self.budget.get()
+        c = self.no_critic_reviews.get()
+        d = self.fb_likes.get()
+        e = self.usr_votes.get()
+        f = self.duration.get()
+
+        if a =="" or b =="" or c =="" or d =="" or e =="" or f =="":
+            messagebox.showerror("Null Values","Please fill in the empty spaces")
+        df = pd.DataFrame([[int(a),float(b),int(c),int(d),int(e),int(f)]],
         columns=['num_user_for_reviews', 'budget','num_critic_for_reviews','movie_facebook_likes',
         'num_voted_users','duration'])
 
-        result = 'The movie '+ self.movie_t.get() + ' is a part of '+self.tree.predict(df)
-        result += '\nRefer to the classification report for more details'
+        result = 'The movie '+ self.movie_t.get() + ' is a part of \''+self.tree.predict(df)
+        result += '\'. Refer to the classification report for more details'
         messagebox.showinfo("Prediction of the movie",result)
 
 
@@ -355,7 +371,7 @@ class MovieApp:
         output = output+'\nRandom Forest Classification Report\n\n'+str(classification_report(Y_test,rfc_pred))+('\n')
        
         print(output)
-
+        self.clicked +=1
         self.results = output
 
     
