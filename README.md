@@ -5,4 +5,4 @@ The project has been implemented in Python3 using scikit-learn and pandas datafr
 
 The project is implemented in Python 3.5 and the project can be executed by running
 
-python ./MovieApp.py from your terminal or cmd line.
+python ./MovieApp.py from your terminal or cmd.
